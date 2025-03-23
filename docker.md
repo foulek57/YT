@@ -1,3 +1,5 @@
+Lignes de commandes utilisé dans la vidéo 
+[Docker : Mais c'est quoi Docker ??](https://www.youtube.com/watch?v=vy98v4GgfTg)
 ## Connexion à Ubuntu
 Pour vous connecter à votre machine Ubuntu, utilisez la commande suivante :
 ```bash
