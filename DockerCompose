@@ -1,0 +1,114 @@
+version: '3.8'
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:stable
+    container_name: homeassistant
+    environment:
+      - TZ=Europe/Paris
+    ports:
+      - 8123:8123
+    volumes:
+      - /home/nicolas/srv/home_assistant/homeassistant/config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    privileged: true
+    restart: always
+
+  adguardhome:  
+    image: adguard/adguardhome  
+    container_name: adguardhome  
+    restart: unless-stopped  
+    ports:  
+      - "53:53"
+      - "67:67/udp"
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+      - "3000:3000/tcp"
+      - "853:853/tcp"
+      - "784:784/udp"
+      - "8853:8853/udp"
+      - "5443:5443/tcp"
+      - "5443:5443/udp"
+    volumes:
+      - /home/nicolas/srv/home_assistant/adguard-home/work:/opt/adguardhome/work
+      - /home/nicolas/srv/home_assistant/adguard-home/confdir:/opt/adguardhome/conf
+
+  frigate:
+    image: ghcr.io/blakeblackshear/frigate:stable
+    container_name: frigate
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+      - "8554:8554"
+      - "8971:8971"
+    volumes:
+      - /home/nicolas/srv/home_assistant/frigate/config:/config
+      - /home/nicolas/srv/home_assistant/frigate/media:/media/frigate
+      - type: tmpfs
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000
+    environment:
+      - FRIGATE_RTSP_PASSWORD=your_rtsp_password
+      - MQTT_BROKER=your_mqtt_broker_ip
+      - MQTT_USER=your_mqtt_user
+      - MQTT_PASSWORD=your_mqtt_password
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883" # Port MQTT standard pour les clients (Home Assistant, Zigbee2MQTT)
+      - "9001:9001" # Port WebSocket (optionnel)
+    volumes:
+      - /home/nicolas/srv/home_assistant/mosquitto/config:/mosquitto/config
+      - /home/nicolas/srv/home_assistant/mosquitto/data:/mosquitto/data
+      - /home/nicolas/srv/home_assistant/mosquitto/log:/mosquitto/log
+
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt
+    container_name: zigbee2mqtt
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # Interface web Zigbee2MQTT
+    volumes:
+      - /home/nicolas/srv/home_assistant/zigbee2mqtt/data:/app/data # Configuration Zigbee2MQTT
+      - /run/udev:/run/udev:ro # Accès aux périphériques USB Zigbee (clé Zigbee)
+    environment:
+      - TZ=Europe/Paris 
+
+
+  zwavejs2mqtt:
+    container_name: zwavejs2mqtt
+    image: zwavejs/zwave-js-ui:latest
+    restart: always
+    tty: true
+    stop_signal: SIGINT
+    environment:
+      - SESSION_SECRET=mysupersecretkey # Remplacez par une clé secrète aléatoire.
+      - TZ=Europe/Paris # Fuseau horaire.
+    volumes:
+      # Dossier pour stocker la configuration Z-Wave JS.
+      - /home/nicolas/srv/home_assistant/zwavejs/config:/usr/src/app/store 
+    ports:
+      # Ports pour l'interface web et le serveur WebSocket.
+      - "8091:8091" 
+      - "3010:3000"
+
+  zerotier-one:
+    image: zerotier/zerotier-synology:latest
+    container_name: zerotier-one
+    devices:
+      # Nécessaire pour créer des interfaces réseau TUN/TAP.
+      - /dev/net/tun 
+    network_mode: host # Utilise le réseau du host.
+    volumes:
+      # Dossier pour stocker les données ZeroTier.
+      - /home/nicolas/srv/home_assistant/zerotier/data:/var/lib/zerotier-one 
+    cap_add:
+      # Permissions nécessaires pour l'administration réseau.
+      - NET_ADMIN 
+      - SYS_ADMIN 
+    restart: unless-stopped
